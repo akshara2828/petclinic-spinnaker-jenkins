@@ -1,8 +1,12 @@
 pipeline {
     agent any
-       triggers {
+    triggers {
         pollSCM "* * * * *"
-       }
+    }
+    environment {
+        DOCKER_USER = "aksharapuligilla"
+        DOCKER_PASS = "akshara@28"
+    }
     stages {
         stage('Build Application') { 
             steps {
@@ -28,7 +32,7 @@ pipeline {
             steps {
                 echo '=== Building Petclinic Docker Image ==='
                 script {
-                    app = docker.build("ibuchh/petclinic-spinnaker-jenkins")
+                    app = docker.build("${DOCKER_USER}/petclinic-spinnaker-jenkins")
                 }
             }
         }
@@ -39,20 +43,20 @@ pipeline {
             steps {
                 echo '=== Pushing Petclinic Docker Image ==='
                 script {
-                    GIT_COMMIT_HASH = sh (script: "git log -n 1 --pretty=format:'%H'", returnStdout: true)
+                    GIT_COMMIT_HASH = sh (script: "git log -n 1 --pretty=format:'%H'", returnStdout: true).trim()
                     SHORT_COMMIT = "${GIT_COMMIT_HASH[0..7]}"
-                    docker.withRegistry('https://registry.hub.docker.com', 'dockerHubCredentials') {
-                        app.push("$SHORT_COMMIT")
-                        app.push("latest")
-                    }
+                    
+                    sh "echo '${DOCKER_PASS}' | docker login -u '${DOCKER_USER}' --password-stdin"
+                    app.push("$SHORT_COMMIT")
+                    app.push("latest")
                 }
             }
         }
         stage('Remove local images') {
             steps {
                 echo '=== Delete the local docker images ==='
-                sh("docker rmi -f ibuchh/petclinic-spinnaker-jenkins:latest || :")
-                sh("docker rmi -f ibuchh/petclinic-spinnaker-jenkins:$SHORT_COMMIT || :")
+                sh("docker rmi -f ${DOCKER_USER}/petclinic-spinnaker-jenkins:latest || :")
+                sh("docker rmi -f ${DOCKER_USER}/petclinic-spinnaker-jenkins:$SHORT_COMMIT || :")
             }
         }
     }
